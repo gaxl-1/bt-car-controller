@@ -13,10 +13,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { theme } from '../styles/theme';
 import { globalStyles } from '../styles/globalStyles';
 import BluetoothService from '../services/BluetoothService';
+import SettingsService from '../services/SettingsService';
 import Logo from '../components/Logo';
 import ConnectionStatus from '../components/ConnectionStatus';
 import ControlButtons from '../components/ControlButtons';
 import DeviceSelector from '../components/DeviceSelector';
+import SettingsModal from '../components/SettingsModal';
 
 /**
  * Pantalla Principal (HomeScreen)
@@ -35,13 +37,18 @@ const HomeScreen = () => {
     const [isConnected, setIsConnected] = useState(false); // ¿Hay un dispositivo conectado?
     const [connectedDevice, setConnectedDevice] = useState(null); // Datos del dispositivo actual
     const [showDeviceSelector, setShowDeviceSelector] = useState(false); // ¿Mostrar modal de selección?
+    const [showSettings, setShowSettings] = useState(false); // Estado para el modal de ajustes
     const [devices, setDevices] = useState([]); // Lista de dispositivos encontrados
     const [isScanning, setIsScanning] = useState(false); // ¿Está escaneando actualmente?
+
+    // Estado de configuración (se pasa a los botones)
+    const [appSettings, setAppSettings] = useState(SettingsService.getSettings());
 
     // Efecto inicial: Configuración y suscripción a eventos
     useEffect(() => {
         // Inicializa permisos y verifica estado del Bluetooth
         initializeBluetooth();
+        loadSettings();
 
         // Handler para eventos del servicio Bluetooth
         const handleBluetoothEvent = (event, data) => {
@@ -59,14 +66,26 @@ const HomeScreen = () => {
             }
         };
 
+        // Listener para cambios en configuración
+        const handleSettingsChange = (newSettings) => {
+            setAppSettings(newSettings);
+        };
+
         // Suscribirse a los eventos
         BluetoothService.addListener(handleBluetoothEvent);
+        SettingsService.addListener(handleSettingsChange);
 
         // Limpieza al desmontar el componente
         return () => {
             BluetoothService.removeListener(handleBluetoothEvent);
+            SettingsService.removeListener(handleSettingsChange);
         };
     }, []);
+
+    const loadSettings = async () => {
+        const settings = await SettingsService.loadSettings();
+        setAppSettings(settings);
+    };
 
     /**
      * Verifica permisos y estado del Bluetooth al iniciar
@@ -150,6 +169,16 @@ const HomeScreen = () => {
                 colors={theme.gradients.background}
                 style={styles.gradient}
             >
+                {/* Botón de Configuración (Flotante o en Header) */}
+                <View style={styles.headerContainer}>
+                    <TouchableOpacity
+                        style={styles.settingsButton}
+                        onPress={() => setShowSettings(true)}
+                    >
+                        <Text style={styles.settingsIcon}>⚙️</Text>
+                    </TouchableOpacity>
+                </View>
+
                 <ScrollView
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}
@@ -189,11 +218,16 @@ const HomeScreen = () => {
                     </View>
 
                     {/* Panel de Control (Cruceta) */}
-                    <ControlButtons disabled={!isConnected} />
+                    <ControlButtons
+                        disabled={!isConnected}
+                        settings={appSettings} // Pasamos la configuración
+                    />
 
                     {/* Pie de página con instrucciones */}
                     <Text style={styles.footer}>
-                        Mantén presionado para mover, suelta para detener
+                        {appSettings.controlMode === 'continuous'
+                            ? 'Mantén presionado para mover'
+                            : 'Toca para activar/desactivar'}
                     </Text>
                 </ScrollView>
 
@@ -205,6 +239,11 @@ const HomeScreen = () => {
                     devices={devices}
                     isScanning={isScanning}
                 />
+
+                <SettingsModal
+                    visible={showSettings}
+                    onClose={() => setShowSettings(false)}
+                />
             </LinearGradient>
         </SafeAreaView>
     );
@@ -214,43 +253,58 @@ const styles = StyleSheet.create({
     gradient: {
         flex: 1,
     },
+    headerContainer: {
+        position: 'absolute',
+        top: 10,
+        right: 20,
+        zIndex: 10,
+    },
+    settingsButton: {
+        padding: 8,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        borderRadius: theme.borderRadius.full,
+    },
+    settingsIcon: {
+        fontSize: 24,
+    },
     scrollContent: {
-        paddingVertical: theme.spacing.lg,
+        padding: theme.spacing.lg,
+        alignItems: 'center',
+        paddingTop: 40, // Espacio para el botón de settings
     },
     appTitle: {
         ...theme.typography.h1,
         color: theme.colors.textPrimary,
-        textAlign: 'center',
         marginTop: theme.spacing.md,
+        textAlign: 'center',
     },
     appSubtitle: {
-        ...theme.typography.caption,
+        ...theme.typography.body,
         color: theme.colors.textSecondary,
-        textAlign: 'center',
-        marginTop: theme.spacing.xs,
         marginBottom: theme.spacing.lg,
+        textAlign: 'center',
     },
     connectButtonContainer: {
-        paddingHorizontal: theme.spacing.lg,
+        width: '100%',
         marginVertical: theme.spacing.lg,
+        ...theme.shadows.glow,
     },
     connectButton: {
-        ...globalStyles.buttonBase,
-        ...theme.shadows.lg,
+        paddingVertical: theme.spacing.md,
+        paddingHorizontal: theme.spacing.xl,
+        borderRadius: theme.borderRadius.full,
+        alignItems: 'center',
     },
     connectButtonText: {
-        ...theme.typography.body,
-        color: theme.colors.textPrimary,
+        color: '#FFF',
         fontWeight: 'bold',
         fontSize: 18,
     },
     footer: {
         ...theme.typography.caption,
         color: theme.colors.textMuted,
+        marginTop: theme.spacing.xl,
         textAlign: 'center',
-        marginTop: theme.spacing.lg,
-        marginBottom: theme.spacing.xl,
-        fontStyle: 'italic',
     },
 });
 

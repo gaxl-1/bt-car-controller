@@ -11,9 +11,12 @@ Una aplicación móvil moderna y elegante para controlar carritos Arduino (HC-05
 ## ✨ Características
 
 - **🎮 Control Intuitivo**: Pad direccional (Adelante, Atrás, Izquierda, Derecha) con respuesta táctil.
+- **⚙️ Configuración Personalizable**:
+  - **Mapeo de Botones**: Personaliza los caracteres que se envían al Arduino.
+  - **Modo de Control**: Elige entre "Mantener pulsado" o "Interruptor" (toque).
+  - **Vibración**: Activa o desactiva el feedback háptico.
 - **📡 Conexión Bluetooth**: Escaneo y conexión rápida con módulos HC-05 y HC-06.
 - **🎨 Diseño Moderno**: Interfaz oscura con gradientes, efectos de vidrio (glassmorphism) y animaciones fluidas.
-- **⚡ Feedback Háptico**: Vibración al presionar botones para una mejor experiencia de usuario.
 - **📱 Soporte Android**: Optimizada para dispositivos Android (5.0+).
 
 ---

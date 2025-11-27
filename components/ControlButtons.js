@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Vibration } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { theme } from '../styles/theme';
@@ -8,19 +8,18 @@ import BluetoothService from '../services/BluetoothService';
 /**
  * Componente Botones de Control
  * -----------------------------
- * Este componente renderiza el pad direccional (cruceta) para controlar el carrito.
- * Maneja los eventos de presionar y soltar para enviar comandos continuos.
- * 
- * Lógica de Control:
- * - Al presionar (onPressIn): Envía comando de movimiento (F, B, L, R)
- * - Al soltar (onPressOut): Envía comando de parada (S)
+ * Renderiza el pad direccional y maneja la lógica de envío de comandos.
+ * Ahora soporta configuración personalizada (mapeo, vibración, modo).
  */
 
-const ControlButtons = ({ disabled }) => {
+const ControlButtons = ({ disabled, settings }) => {
     // Estado para rastrear qué botón está presionado visualmente
-    const [pressedButton, setPressedButton] = React.useState(null);
+    const [pressedButton, setPressedButton] = useState(null);
 
-    // Valores animados para el efecto de escala al presionar cada botón
+    // Estado para modo interruptor (toggle)
+    const [activeToggle, setActiveToggle] = useState(null);
+
+    // Valores animados
     const scaleAnims = {
         forward: React.useRef(new Animated.Value(1)).current,
         backward: React.useRef(new Animated.Value(1)).current,
@@ -28,74 +27,126 @@ const ControlButtons = ({ disabled }) => {
         right: React.useRef(new Animated.Value(1)).current,
     };
 
+    // Resetear estados si se desconecta
+    useEffect(() => {
+        if (disabled) {
+            setPressedButton(null);
+            setActiveToggle(null);
+        }
+    }, [disabled]);
+
     /**
-     * Maneja el evento cuando el usuario comienza a presionar un botón
-     * @param {string} direction - Identificador del botón ('forward', 'backward', etc.)
-     * @param {string} command - Comando a enviar al Arduino ('F', 'B', etc.)
+     * Obtiene el comando mapeado para una dirección
      */
-    const handlePressIn = (direction, command) => {
-        if (disabled) return; // No hace nada si no está conectado
+    const getCommand = (direction) => {
+        if (!settings || !settings.buttonMapping) return direction === 'stop' ? 'S' : '';
+        return settings.buttonMapping[direction] || '';
+    };
 
+    /**
+     * Maneja el evento de presionar (Press In)
+     */
+    const handlePressIn = (direction) => {
+        if (disabled) return;
+
+        // Si es modo interruptor, la lógica es diferente (ver handlePress)
+        if (settings?.controlMode === 'switch') return;
+
+        const command = getCommand(direction);
         setPressedButton(direction);
-        Vibration.vibrate(50); // Feedback háptico (vibración corta)
 
-        // Inicia animación de "hundimiento" del botón
-        Animated.spring(scaleAnims[direction], {
-            toValue: 0.9, // Reduce tamaño al 90%
-            useNativeDriver: true,
-        }).start();
+        if (settings?.vibrationEnabled) {
+            Vibration.vibrate(50);
+        }
 
-        // Envía el comando de movimiento al Arduino
+        animateButton(direction, 0.9);
         BluetoothService.sendCommand(command);
     };
 
     /**
-     * Maneja el evento cuando el usuario suelta el botón
-     * @param {string} direction - Identificador del botón que se soltó
+     * Maneja el evento de soltar (Press Out)
      */
     const handlePressOut = (direction) => {
         if (disabled) return;
+        if (settings?.controlMode === 'switch') return;
 
         setPressedButton(null);
+        animateButton(direction, 1);
 
-        // Restaura el tamaño original del botón con efecto rebote
+        // Enviar comando de parada
+        BluetoothService.sendCommand(getCommand('stop'));
+    };
+
+    /**
+     * Maneja el toque simple (para modo interruptor)
+     */
+    const handlePress = (direction) => {
+        if (disabled) return;
+        if (settings?.controlMode !== 'switch') return;
+
+        if (settings?.vibrationEnabled) {
+            Vibration.vibrate(50);
+        }
+
+        // Si ya está activo este botón, lo desactivamos (Stop)
+        if (activeToggle === direction) {
+            setActiveToggle(null);
+            setPressedButton(null);
+            animateButton(direction, 1);
+            BluetoothService.sendCommand(getCommand('stop'));
+        } else {
+            // Si hay otro activo, lo desactivamos visualmente primero
+            if (activeToggle) {
+                animateButton(activeToggle, 1);
+            }
+
+            // Activamos el nuevo
+            setActiveToggle(direction);
+            setPressedButton(direction);
+            animateButton(direction, 0.9);
+            BluetoothService.sendCommand(getCommand(direction));
+        }
+    };
+
+    const animateButton = (direction, scale) => {
         Animated.spring(scaleAnims[direction], {
-            toValue: 1,
-            friction: 3,
+            toValue: scale,
             useNativeDriver: true,
+            friction: 3,
         }).start();
-
-        // Envía comando 'S' para detener los motores inmediatamente
-        BluetoothService.sendCommand('S');
     };
 
     /**
      * Sub-componente para renderizar un botón individual
-     * Encapsula la lógica de animación y estilos
      */
-    const ControlButton = ({ direction, command, label, icon, style }) => (
-        <Animated.View style={{ transform: [{ scale: scaleAnims[direction] }] }}>
-            <TouchableOpacity
-                onPressIn={() => handlePressIn(direction, command)}
-                onPressOut={() => handlePressOut(direction)}
-                disabled={disabled}
-                activeOpacity={0.8}
-            >
-                <LinearGradient
-                    // Cambia el color si el botón está presionado
-                    colors={
-                        pressedButton === direction
-                            ? [theme.colors.primaryLight, theme.colors.primary]
-                            : ['rgba(139, 92, 246, 0.3)', 'rgba(139, 92, 246, 0.1)']
-                    }
-                    style={[styles.controlButton, style, disabled && styles.disabledButton]}
+    const ControlButton = ({ direction, label, icon, style }) => {
+        const isPressed = pressedButton === direction;
+
+        return (
+            <Animated.View style={{ transform: [{ scale: scaleAnims[direction] }] }}>
+                <TouchableOpacity
+                    onPressIn={() => handlePressIn(direction)}
+                    onPressOut={() => handlePressOut(direction)}
+                    onPress={() => handlePress(direction)}
+                    disabled={disabled}
+                    activeOpacity={settings?.controlMode === 'switch' ? 0.9 : 0.8}
+                    delayPressIn={0}
                 >
-                    <Text style={styles.buttonIcon}>{icon}</Text>
-                    <Text style={styles.buttonLabel}>{label}</Text>
-                </LinearGradient>
-            </TouchableOpacity>
-        </Animated.View>
-    );
+                    <LinearGradient
+                        colors={
+                            isPressed
+                                ? [theme.colors.primaryLight, theme.colors.primary]
+                                : ['rgba(139, 92, 246, 0.3)', 'rgba(139, 92, 246, 0.1)']
+                        }
+                        style={[styles.controlButton, style, disabled && styles.disabledButton]}
+                    >
+                        <Text style={styles.buttonIcon}>{icon}</Text>
+                        <Text style={styles.buttonLabel}>{label}</Text>
+                    </LinearGradient>
+                </TouchableOpacity>
+            </Animated.View>
+        );
+    };
 
     return (
         <View style={styles.container}>
@@ -103,48 +154,42 @@ const ControlButtons = ({ disabled }) => {
                 <Text style={styles.title}>Controles</Text>
 
                 <View style={styles.controlPad}>
-                    {/* Botón Adelante (Arriba) */}
+                    {/* Botón Adelante */}
                     <View style={styles.row}>
                         <ControlButton
                             direction="forward"
-                            command="F"
                             label="Adelante"
                             icon="▲"
                         />
                     </View>
 
-                    {/* Fila Central: Izquierda y Derecha */}
+                    {/* Fila Central */}
                     <View style={[styles.row, styles.middleRow]}>
                         <ControlButton
                             direction="left"
-                            command="L"
                             label="Izquierda"
                             icon="◄"
                             style={styles.sideButton}
                         />
-                        {/* Espaciador central para separar izquierda/derecha */}
                         <View style={styles.spacer} />
                         <ControlButton
                             direction="right"
-                            command="R"
                             label="Derecha"
                             icon="►"
                             style={styles.sideButton}
                         />
                     </View>
 
-                    {/* Botón Atrás (Abajo) */}
+                    {/* Botón Atrás */}
                     <View style={styles.row}>
                         <ControlButton
                             direction="backward"
-                            command="B"
                             label="Atrás"
                             icon="▼"
                         />
                     </View>
                 </View>
 
-                {/* Mensaje informativo cuando está desconectado */}
                 {disabled && (
                     <Text style={styles.disabledText}>
                         Conecta un dispositivo para usar los controles
