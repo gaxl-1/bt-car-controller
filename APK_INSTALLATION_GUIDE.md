@@ -2,10 +2,10 @@
 
 ## 📦 Información del APK
 
-- **Nombre**: BT CAR 27 v1.1.0.apk
+- **Nombre**: BT CAR 27 v1.1.1.apk
 - **Tamaño**: ~57.5 MB
-- **Ubicación**: `builds/BT CAR 27 v1.1.0.apk`
-- **Versión**: 1.1.0
+- **Ubicación**: `builds/BT CAR 27 v1.1.1.apk`
+- **Versión**: 1.1.1
 
 ---
 
@@ -17,7 +17,7 @@
 2. Copia el archivo a tu dispositivo:
    ```bash
    # El APK está en la carpeta 'builds' del proyecto:
-   builds/BT CAR 27 v1.1.0.apk
+   builds/BT CAR 27 v1.1.1.apk
    ```
 3. En el dispositivo, abre el archivo APK
 4. Permite instalación de fuentes desconocidas si te lo pide
