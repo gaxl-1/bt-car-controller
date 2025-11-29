@@ -238,6 +238,7 @@ const HomeScreen = () => {
                     onSelectDevice={handleSelectDevice}
                     devices={devices}
                     isScanning={isScanning}
+                    onScan={scanDevices}
                 />
 
                 <SettingsModal

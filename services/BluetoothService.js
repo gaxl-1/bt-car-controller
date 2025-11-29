@@ -1,3 +1,4 @@
+import { PermissionsAndroid, Platform } from 'react-native';
 import RNBluetoothClassic from 'react-native-bluetooth-classic';
 
 /**
@@ -17,17 +18,45 @@ class BluetoothService {
 
     /**
      * Solicita permisos de Bluetooth al usuario (Android)
-     * Es necesario para escanear y conectar dispositivos en Android 12+
+     * Maneja diferencias entre Android 12+ (S) y versiones anteriores.
      * @returns {Promise<boolean>} true si los permisos fueron concedidos
      */
     async requestPermissions() {
-        try {
-            const granted = await RNBluetoothClassic.requestBluetoothEnabled();
-            return granted;
-        } catch (error) {
-            console.error('Error al solicitar permisos de Bluetooth:', error);
-            return false;
+        if (Platform.OS === 'android') {
+            try {
+                // Para Android 12+ (API 31+)
+                if (Platform.Version >= 31) {
+                    const result = await PermissionsAndroid.requestMultiple([
+                        PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+                        PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+                        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION, // A veces necesario para escanear
+                    ]);
+
+                    return (
+                        result['android.permission.BLUETOOTH_CONNECT'] === PermissionsAndroid.RESULTS.GRANTED &&
+                        result['android.permission.BLUETOOTH_SCAN'] === PermissionsAndroid.RESULTS.GRANTED
+                    );
+                }
+                // Para Android < 12
+                else {
+                    const granted = await PermissionsAndroid.request(
+                        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+                        {
+                            title: 'Permiso de Ubicación Requerido',
+                            message: 'Esta app necesita acceso a la ubicación para buscar dispositivos Bluetooth cercanos.',
+                            buttonNeutral: 'Preguntar luego',
+                            buttonNegative: 'Cancelar',
+                            buttonPositive: 'OK',
+                        }
+                    );
+                    return granted === PermissionsAndroid.RESULTS.GRANTED;
+                }
+            } catch (err) {
+                console.warn(err);
+                return false;
+            }
         }
+        return true;
     }
 
     /**

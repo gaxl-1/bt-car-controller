@@ -220,14 +220,14 @@ const styles = StyleSheet.create({
         marginVertical: theme.spacing.sm,
     },
     middleRow: {
-        marginVertical: theme.spacing.md,
+        marginVertical: theme.spacing.sm,
     },
     spacer: {
-        width: 100,
+        width: 60, // Reduced from 100
     },
     controlButton: {
-        width: 100,
-        height: 100,
+        width: 90, // Reduced from 100
+        height: 90, // Reduced from 100
         borderRadius: theme.borderRadius.lg,
         justifyContent: 'center',
         alignItems: 'center',

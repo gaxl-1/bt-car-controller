@@ -19,7 +19,7 @@ import { globalStyles } from '../styles/globalStyles';
  * Permite escanear y seleccionar un dispositivo para conectar.
  */
 
-const DeviceSelector = ({ visible, onClose, onSelectDevice, devices, isScanning }) => {
+const DeviceSelector = ({ visible, onClose, onSelectDevice, devices, isScanning, onScan }) => {
 
     // Renderiza cada ítem de la lista de dispositivos
     const renderDevice = ({ item }) => (
@@ -86,6 +86,19 @@ const DeviceSelector = ({ visible, onClose, onSelectDevice, devices, isScanning 
                                 <Text style={styles.emptySubtext}>
                                     Asegúrate de que el Bluetooth esté activado y el dispositivo esté emparejado
                                 </Text>
+                            </View>
+                        )}
+
+                        {/* Botón de Reintentar (si no está escaneando) */}
+                        {!isScanning && (
+                            <View style={styles.footer}>
+                                <TouchableOpacity
+                                    style={styles.retryButton}
+                                    onPress={onScan} // Necesitamos pasar esta prop desde HomeScreen
+                                    activeOpacity={0.8}
+                                >
+                                    <Text style={styles.retryText}>↻ Reintentar Escaneo</Text>
+                                </TouchableOpacity>
                             </View>
                         )}
                     </LinearGradient>
@@ -192,6 +205,21 @@ const styles = StyleSheet.create({
         color: theme.colors.textSecondary,
         textAlign: 'center',
         paddingHorizontal: theme.spacing.lg,
+    },
+    footer: {
+        padding: theme.spacing.md,
+        borderTopWidth: 1,
+        borderTopColor: 'rgba(255,255,255,0.1)',
+    },
+    retryButton: {
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        padding: theme.spacing.md,
+        borderRadius: theme.borderRadius.md,
+        alignItems: 'center',
+    },
+    retryText: {
+        color: theme.colors.textPrimary,
+        fontWeight: 'bold',
     },
 });
 
